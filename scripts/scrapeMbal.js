@@ -1,158 +1,162 @@
 /* モバアル更新チェック */
 
-const client = require('cheerio-httpcli');
+'use strict';
+
+const cheerio = require('cheerio-httpcli');
 const twitter = require('twitter');
-const fs = require('fs');
+const { Client } = require('pg');
 
 // HTML スクレイピング先
 const urlSp = 'http://www.albirex.co.jp/sp/';
 const urlPd = 'http://www.albirex.co.jp/news/photo_diary';
 
 exports.scrape = async isDebug => {
-    // UA変更
-    client.set('browser', 'iphone');
-
-    // 最新記事のタイトル
-    const text = await fs.readFileSync(process.env.MBAL_LOG, { encoding: 'utf8' });
-    const titleArr = text.replace(/\r/g, '').split('\n');
-    const beatRecent = titleArr[0];
-    const staffRecent = titleArr[1];
-    const newsRecent = titleArr[2];
-    const academyRecent = titleArr[3];
-    const photoRecent = titleArr[4];
-    const columnRecent = titleArr[5];
+    // 現時点の最新記事のタイトルとURL
+    const recentTitles = await loadRecentTitle(isDebug);
+    // サイトに問い合わせした結果
+    const spResult = await scrapeSpSite();
+    const pdResult = await scrapePhotoDiary();
 
     // 更新があったかどうか
     let haveUpdate = false;
 
-    const spResult = await fetchAndScrapeSp();
-    const pdResult = await fetchAndScrapePd();
-
-    if(spResult.beat.title != null && spResult.beat.title != beatRecent) {
-        tweetUpdate('アルビの鼓動', spResult.beat, isDebug);
+    if (spResult.beat.title != null &&
+        spResult.beat.title != recentTitles.beat.title) {
+        saveRecentTitle(isDebug, 'beat', spResult.beat);
+        tweetUpdate(isDebug, 'アルビの鼓動', spResult.beat);
         haveUpdate = true;
     }
 
-    if (spResult.staff.title != null && spResult.staff.title != staffRecent) {
-        tweetUpdate('広報ダイアリー', spResult.staff, isDebug);
+    if (spResult.staff.title != null &&
+        spResult.staff.title != recentTitles.staff.title) {
+        saveRecentTitle(isDebug, 'staff', spResult.staff);
+        tweetUpdate(isDebug, '広報ダイアリー', spResult.staff);
         haveUpdate = true;
     }
 
-    if (spResult.news.title != null && spResult.news.title != newsRecent) {
-        tweetUpdate('ニュース', spResult.news, isDebug);
+    if (spResult.news.title != null &&
+        spResult.news.title != recentTitles.news.title) {
+        saveRecentTitle(isDebug, 'news', spResult.news);
+        tweetUpdate(isDebug, 'ニュース', spResult.news);
         haveUpdate = true;
     }
 
-    if (spResult.academy.title != null && spResult.academy.title != academyRecent) {
-        tweetUpdate('アカデミー', spResult.academy, isDebug);
+    if (spResult.academy.title != null &&
+        spResult.academy.title != recentTitles.academy.title) {
+        saveRecentTitle(isDebug, 'academy', spResult.academy);
+        tweetUpdate(isDebug, 'アカデミー', spResult.academy);
         haveUpdate = true;
     }
 
-    if (pdResult.photo.title != null && pdResult.photo.title != photoRecent) {
-        tweetUpdate('フォトダイアリー', pdResult.photo, isDebug);
+    if (pdResult.photo.title != null &&
+        pdResult.photo.title != recentTitles.photo.title) {
+        saveRecentTitle(isDebug, 'photo', pdResult.photo);
+        tweetUpdate(isDebug, 'フォトダイアリー', pdResult.photo);
         haveUpdate = true;
     }
 
-    if (spResult.column.title != null && spResult.column.title != columnRecent) {
+    if (spResult.column.title != null &&
+        spResult.column.title != recentTitles.column.title) {
         spResult.column.title = spResult.column.title.replace(/【コラム】/g, '');
-        tweetUpdate('コラム', spResult.column, isDebug);
+        saveRecentTitle(isDebug, 'column', spResult.column);
+        tweetUpdate(isDebug, 'コラム', spResult.column);
         haveUpdate = true;
     }
 
-    if (haveUpdate) {
-        const beat = spResult.beat.title == null ? beatRecent : spResult.beat.title;
-        const staff = spResult.staff.title == null ? staffRecent : spResult.staff.title;
-        const column = spResult.column.title == null ? columnRecent : spResult.column.title;
-
-        const text = beat + '\n' + staff + '\n'
-            + spResult.news.title + '\n' + spResult.academy.title + '\n'
-            + pdResult.photo.title + '\n' + column;
-        fs.writeFileSync(process.env.MBAL_LOG, text, err => {
-            if (err) {
-                console.log('Mbal:', Date() + '\n' +
-                    'An error occurred while updating log file:', err);
-            }
-        });
-    } else {
-        if(isDebug) {
-            console.log('mbal:', Date() + '\n' + 'Mbal contents are up to date.');
-        }
+    if (!haveUpdate && isDebug) {
+        console.log('Mbal:', Date() + '\n' + 'Mbal contents are up to date.');
     }
 };
 
-function fetchAndScrapeSp() {
+/**
+ * SPサイトのスクレイピング
+ * @return {{category: {title: string, url: string}}} 最新タイトルとURL
+ */
+function scrapeSpSite() {
     return new Promise((resolve, reject) => {
-        client.fetch(urlSp, (err, $) => {
+        cheerio.fetch(urlSp, (err, $) => {
             if (!err) {
                 // TODO: 文字列の切り出し方
-                const mbalTitle = $('.whats-new-detail > .text').find('a').html()
+                const recentMbalTitle = $('.whats-new-detail > .text').find('a').html()
                     .split('<br>')[1].replace('を更新しました', '').trim();
-                const mbalUrl = $('.whats-new-detail').find('a').url();
+                const recentMbalUrl = $('.whats-new-detail').find('a').url();
 
                 let beat = new Object({ title: null, url: null });
                 let staff = new Object({ title: null, url: null });
                 let column = new Object({ title: null, url: null });
 
-                if(/albirex_beat/.test(mbalUrl)) {
-                    beat = new Object({ title: mbalTitle, url: mbalUrl });
-                } else if (/public_diary/.test(mbalUrl)) {
-                    staff = new Object({ title: mbalTitle, url: mbalUrl });
-                } else if (/walk_way/.test(mbalUrl)) {
-                    column = new Object({ title: mbalTitle, url: mbalUrl });
+                if (/albirex_beat/.test(recentMbalUrl)) {
+                    beat = new Object({ title: recentMbalTitle, url: recentMbalUrl });
+                } else if (/public_diary/.test(recentMbalUrl)) {
+                    staff = new Object({ title: recentMbalTitle, url: recentMbalUrl });
+                } else if (/walk_way/.test(recentMbalUrl)) {
+                    column = new Object({ title: recentMbalTitle, url: recentMbalUrl });
                 }
 
-                const newsRes = $('.news > .category-detail > ul > li').eq(0);
-                const academyRes = $('.academy-news > .category-detail > ul > li').eq(0);
-                const news = new Object({ title: newsRes.find('span').text(), url: newsRes.find('a').url() });
-                const academy = new Object({ title: academyRes.find('span').text(), url: academyRes.find('a').url() });
+                const recentNews = $('.news > .category-detail > ul > li').eq(0);
+                const recentAcademy = $('.academy-news > .category-detail > ul > li').eq(0);
+                const news = new Object({
+                    title: recentNews.find('span').text(),
+                    url: recentNews.find('a').url()
+                });
+                const academy = new Object({
+                    title: recentAcademy.find('span').text(),
+                    url: recentAcademy.find('a').url()
+                });
 
                 resolve(new Object({
-                    beat: beat, staff: staff, news: news, 
+                    beat: beat, staff: staff, news: news,
                     academy: academy, column: column
                 }));
             } else {
-                console.log('Mbal:', Date() + '\n' + 
+                console.error('Mbal:', Date() + '\n' +
                     'An error occurred while scraping SP site:', err);
                 reject(err);
             }
         });
     })
         .catch(err => {
-            console.log('Mbal:', Date() + '\n' +
-                'An error occurred:', err);
+            console.error('Mbal:', Date() + '\n' + 'An error occurred:', err);
             return err;
         });
 }
 
-function fetchAndScrapePd() {
+/**
+ * PCサイト フォトダイアリーのスクレイピング
+ * @return {{category: {title: string, url: string}}} 最新タイトルとURL
+ */
+function scrapePhotoDiary() {
     return new Promise((resolve, reject) => {
-        client.fetch(urlPd, (err, $) => {
+        cheerio.fetch(urlPd, (err, $) => {
             if (!err) {
-                const photo = new Object({photo: {
-                    title: $('.second-news-area').eq(0).find('a').eq(0).text(),
-                    url: $('.second-news-area').eq(0).find('a').url()[1]
-                }});
+                const photo = new Object({
+                    photo: {
+                        title: $('.second-news-area').eq(0).find('a').eq(0).text(),
+                        url: $('.second-news-area').eq(0).find('a').url()[1]
+                    }
+                });
+
                 resolve(photo);
             } else {
-                console.log('Mbal:', Date() + '\n' +
+                console.error('Mbal:', Date() + '\n' +
                     'An error occurred while scraping PC site:', err);
                 reject(err);
             }
         });
     })
         .catch(err => {
-            console.log('Mbal:', Date() + '\n' +
-                'An error occurred:', err);
+            console.error('Mbal:', Date() + '\n' + 'An error occurred:', err);
             return err;
         });
 }
 
 /**
  * ツイートする
+ * @param {boolean} isDebug デバッグ用
  * @param {string} header カテゴリ
  * @param {{title: string, url: string}} data ツイートの中身
  */
-function tweetUpdate(header, data, isDebug) {
+function tweetUpdate(isDebug, header, data) {
     const content = '【' + header + '】' + data.title + '\n' + data.url + '\n#albirex';
     console.log('Mbal:', Date() + '\n' + content);
     defineBot(isDebug).post(
@@ -162,7 +166,7 @@ function tweetUpdate(header, data, isDebug) {
             if (!err) {
                 console.log('Tweet succeeded.');
             } else {
-                console.log('An error occurred while tweeting:', err);
+                console.error('An error occurred while tweeting:', err);
             }
         }
     );
@@ -171,6 +175,7 @@ function tweetUpdate(header, data, isDebug) {
 /**
  * つぶやくアカウントを設定する
  * @param {boolean} isDebug デバッグ用
+ * @return {{twitter}} Twitter の CK/CS
  */
 function defineBot(isDebug) {
     if (isDebug) {
@@ -186,6 +191,103 @@ function defineBot(isDebug) {
             consumer_secret: process.env.MBAL_CS,
             access_token_key: process.env.MBAL_ATK,
             access_token_secret: process.env.MBAL_ATS
+        });
+    }
+}
+
+/**
+ * SQL テーブルから記事タイトルの一覧を取得
+ * @param {boolean} isDebug デバッグ用
+ * @return {Promise<{category: {title: string, url: string}}>} タイトルとURLのリスト
+ */
+async function loadRecentTitle(isDebug) {
+    try {
+        const client = defineSql(isDebug);
+
+        client.connect(err => {
+            if (err) {
+                console.error('Mbal:', Date() + '\n' +
+                    'An error occurred while fetching SQL:', err);
+                throw err;
+            }
+        });
+
+        const result = await client.query('SELECT category, title, url FROM public.mbal');
+        let beat, staff, news, academy, photo, column;
+        result.rows.filter((item) => {
+            if (item.category == 'beat') {
+                beat = item;
+            }
+            if (item.category == 'staff') {
+                staff = item;
+            }
+            if (item.category == 'news') {
+                news = item;
+            }
+            if (item.category == 'academy') {
+                academy = item;
+            }
+            if (item.category == 'photo') {
+                photo = item;
+            }
+            if (item.category == 'column') {
+                column = item;
+            }
+        });
+
+        client.end();
+
+        return new Object({
+            beat: beat, staff: staff, news: news,
+            academy: academy, photo: photo, column: column
+        });
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+/**
+ * SQLのタイトルを更新
+ * @param {boolean} isDebug デバッグ用
+ * @param {string} category カテゴリ
+ * @param {{title: string, url:string}} data タイトルとURL 
+ */
+async function saveRecentTitle(isDebug, category, data) {
+    try {
+        const client = defineSql(isDebug);
+
+        client.connect(err => {
+            if (err) {
+                console.log('Mbal:', Date() + '\n' +
+                    'An error occurred while fetching SQL:', err);
+                throw err;
+            }
+        });
+        
+        await client.query('UPDATE public.mbal SET title = \'' + data.title +
+            '\', url = \'' + data.url + '\' WHERE category = \'' + category + '\'');
+
+        client.end();
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+/**
+ * 読み込む SQL テーブル先を設定する
+ * @param {boolean} isDebug デバッグ用
+ * @return {{Client}} SQLの接続設定
+ */
+function defineSql(isDebug) {
+    if (isDebug) {
+        return new Client({
+            host: 'localhost',
+            user: process.env.LOCAL_SQL_USER,
+            password: process.env.LOCAL_SQL_PW
+        });
+    } else {
+        return new Client({
+            connectionString: process.env.DATABASE_URL
         });
     }
 }
