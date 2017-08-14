@@ -1,0 +1,15 @@
+body {
+  font: 20px;
+}
+
+a.mbal {
+    color: #FF3F00;
+}
+
+a.grkb {
+    color: #FE45E1;
+}
+
+a:visited {
+    color: #33344E;
+}

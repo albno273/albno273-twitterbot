@@ -29,6 +29,7 @@ Temporary Items
 
 # Other
 node_modules/
-test.sh
+debug.sh
 debug.js
+webapp.sh
 .eslintrc.json

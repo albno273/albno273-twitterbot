@@ -170,11 +170,11 @@ async function saveRecentTitle(isDebug, name, newData, oldData) {
         });
 
         await client.query(
-            'UPDATE public.grkb ' 
+            'UPDATE public.grkb '
             + 'SET recent_title = \'' + newData.title
             + '\', recent_url = \'' + newData.url
             + '\', previous_title = \'' + oldData.recent_title
-            + '\', previous_url = \'' + oldData.recent_url 
+            + '\', previous_url = \'' + oldData.recent_url
             + '\' WHERE name = \'' + name + '\''
         );
 

@@ -11,6 +11,7 @@ My twitter bots made in Node.js
     - cheerio-httpcli (^0.7.0)
     - cron (^1.2.1)
     - feedparser (2.2.1)
+    - pg (^7.0.2)
     - request (^2.81.0)
     - twitter (^1.7.1)
 
