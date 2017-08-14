@@ -30,6 +30,5 @@ Temporary Items
 # Other
 node_modules/
 test.sh
-.eslintrc.json
-pg.js
 debug.js
+.eslintrc.json
