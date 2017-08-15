@@ -23,7 +23,7 @@ const goodNight =
  * 毎分30秒
  */
 new CronJob('30 * * * * *', () => {
-    grkb.crawlRss(false);
+    grkb.crawl(false);
 }, null, true, 'Asia/Tokyo');
 
 /** 

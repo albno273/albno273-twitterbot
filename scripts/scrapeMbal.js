@@ -3,6 +3,7 @@
 
 const cheerio = require('cheerio-httpcli');
 const commonFuncs = require('./commonFuncs.js');
+const mailer = require('./mailSender.js');
 
 // HTML スクレイピング先
 const urlSp = 'http://www.albirex.co.jp/sp/';
@@ -13,60 +14,66 @@ const urlPd = 'http://www.albirex.co.jp/news/photo_diary';
  * @param {boolean} isDebug デバッグ用フラグ
  */
 exports.scrape = async isDebug => {
-    // 現時点の最新記事のタイトルとURL
-    const recentTitles = await loadRecentTitle(isDebug);
-    // サイトに問い合わせした結果
-    const spResult = await scrapeSpSite();
-    const pdResult = await scrapePhotoDiary();
+    try {
+        // 現時点の最新記事のタイトルとURL
+        const recentTitles = await loadRecentTitle(isDebug);
+        // サイトに問い合わせした結果
+        const spResult = await scrapeSpSite();
+        const pdResult = await scrapePhotoDiary();
 
-    // 更新があったかどうか
-    let haveUpdate = false;
+        // 更新があったかどうか
+        let haveUpdate = false;
 
-    if (spResult.beat.title != null
-        && spResult.beat.title != recentTitles.beat.title) {
-        saveRecentTitle(isDebug, 'beat', spResult.beat);
-        tweetUpdate(isDebug, 'アルビの鼓動', spResult.beat);
-        haveUpdate = true;
-    }
+        if (spResult.beat.title != null
+            && spResult.beat.title != recentTitles.beat.title) {
+            saveRecentTitle(isDebug, 'beat', spResult.beat);
+            tweetUpdate(isDebug, 'アルビの鼓動', spResult.beat);
+            haveUpdate = true;
+        }
 
-    if (spResult.staff.title != null
-        && spResult.staff.title != recentTitles.staff.title) {
-        saveRecentTitle(isDebug, 'staff', spResult.staff);
-        tweetUpdate(isDebug, '広報ダイアリー', spResult.staff);
-        haveUpdate = true;
-    }
+        if (spResult.staff.title != null
+            && spResult.staff.title != recentTitles.staff.title) {
+            saveRecentTitle(isDebug, 'staff', spResult.staff);
+            tweetUpdate(isDebug, '広報ダイアリー', spResult.staff);
+            haveUpdate = true;
+        }
 
-    if (spResult.news.title != null
-        && spResult.news.title != recentTitles.news.title) {
-        saveRecentTitle(isDebug, 'news', spResult.news);
-        tweetUpdate(isDebug, 'ニュース', spResult.news);
-        haveUpdate = true;
-    }
+        if (spResult.news.title != null
+            && spResult.news.title != recentTitles.news.title) {
+            saveRecentTitle(isDebug, 'news', spResult.news);
+            tweetUpdate(isDebug, 'ニュース', spResult.news);
+            haveUpdate = true;
+        }
 
-    if (spResult.academy.title != null
-        && spResult.academy.title != recentTitles.academy.title) {
-        saveRecentTitle(isDebug, 'academy', spResult.academy);
-        tweetUpdate(isDebug, 'アカデミー', spResult.academy);
-        haveUpdate = true;
-    }
+        if (spResult.academy.title != null
+            && spResult.academy.title != recentTitles.academy.title) {
+            saveRecentTitle(isDebug, 'academy', spResult.academy);
+            tweetUpdate(isDebug, 'アカデミー', spResult.academy);
+            haveUpdate = true;
+        }
 
-    if (pdResult.photo.title != null
-        && pdResult.photo.title != recentTitles.photo.title) {
-        saveRecentTitle(isDebug, 'photo', pdResult.photo);
-        tweetUpdate(isDebug, 'フォトダイアリー', pdResult.photo);
-        haveUpdate = true;
-    }
+        if (pdResult.photo.title != null
+            && pdResult.photo.title != recentTitles.photo.title) {
+            saveRecentTitle(isDebug, 'photo', pdResult.photo);
+            tweetUpdate(isDebug, 'フォトダイアリー', pdResult.photo);
+            haveUpdate = true;
+        }
 
-    if (spResult.column.title != null
-        && spResult.column.title != recentTitles.column.title) {
-        spResult.column.title = spResult.column.title.replace(/【コラム】/g, '');
-        saveRecentTitle(isDebug, 'column', spResult.column);
-        tweetUpdate(isDebug, 'コラム', spResult.column);
-        haveUpdate = true;
-    }
+        if (spResult.column.title != null
+            && spResult.column.title != recentTitles.column.title) {
+            spResult.column.title = spResult.column.title.replace(/【コラム】/g, '');
+            saveRecentTitle(isDebug, 'column', spResult.column);
+            tweetUpdate(isDebug, 'コラム', spResult.column);
+            haveUpdate = true;
+        }
 
-    if (!haveUpdate && isDebug) {
-        console.log('Mbal:', Date() + '\n' + 'Mbal contents are up to date.');
+        if (!haveUpdate && isDebug) {
+            console.log(
+                '=== GRKB: ', Date() + ' ===\n' + 'Mbal contents are up to date.'
+            );
+        }
+    } catch (err) {
+        mailer.sendMail('Error in scrapeMbal.scrape:', err);
     }
 };
 
@@ -111,14 +118,12 @@ function scrapeSpSite() {
                     academy: academy, column: column
                 }));
             } else {
-                console.error('Mbal:', Date() + '\n' +
-                    'An error occurred while scraping SP site:', err);
                 reject(err);
             }
         });
     })
         .catch(err => {
-            console.error('Mbal:', Date() + '\n' + 'An error occurred:', err);
+            mailer.sendMail('Error in scrapeMbal.scrapeSpSite:', err);
             return err;
         });
 }
@@ -131,23 +136,19 @@ function scrapePhotoDiary() {
     return new Promise((resolve, reject) => {
         cheerio.fetch(urlPd, (err, $) => {
             if (!err) {
-                const photo = new Object({
+                resolve(new Object({
                     photo: {
                         title: $('.second-news-area').eq(0).find('a').eq(0).text(),
                         url: $('.second-news-area').eq(0).find('a').url()[1]
                     }
-                });
-
-                resolve(photo);
+                }));
             } else {
-                console.error('Mbal:', Date() + '\n' +
-                    'An error occurred while scraping PC site:', err);
                 reject(err);
             }
         });
     })
         .catch(err => {
-            console.error('Mbal:', Date() + '\n' + 'An error occurred:', err);
+            mailer.sendMail('Error in scrapeMbal.scrapePhotoDiary:', err);
             return err;
         });
 }
@@ -159,36 +160,38 @@ function scrapePhotoDiary() {
  */
 async function loadRecentTitle(isDebug) {
     try {
-        const client = commonFuncs.defineSql(isDebug);
+        const client = commonFuncs.configureSqlTable(isDebug);
 
         client.connect(err => {
             if (err) {
-                console.error('Mbal:', Date() + '\n' +
-                    'An error occurred while fetching SQL:', err);
                 throw err;
             }
         });
 
-        const result = await client.query('SELECT category, title, url FROM public.mbal');
+        const result = await client.query(
+            'SELECT category, title, url FROM public.mbal'
+        );
         let beat, staff, news, academy, photo, column;
         result.rows.filter((item) => {
-            if (item.category == 'beat') {
+            switch (item.category) {
+            case 'beat':
                 beat = item;
-            }
-            if (item.category == 'staff') {
+                break;
+            case 'staff':
                 staff = item;
-            }
-            if (item.category == 'news') {
+                break;
+            case 'news':
                 news = item;
-            }
-            if (item.category == 'academy') {
+                break;
+            case 'academy': 
                 academy = item;
-            }
-            if (item.category == 'photo') {
+                break;
+            case 'photo':
                 photo = item;
-            }
-            if (item.category == 'column') {
+                break;
+            case 'column':
                 column = item;
+                break;
             }
         });
 
@@ -199,7 +202,7 @@ async function loadRecentTitle(isDebug) {
             academy: academy, photo: photo, column: column
         });
     } catch (err) {
-        console.error(err);
+        mailer.sendMail('Error in scrapeMbal.loadRecentTitle:', err);
     }
 }
 
@@ -211,26 +214,24 @@ async function loadRecentTitle(isDebug) {
  */
 async function saveRecentTitle(isDebug, category, data) {
     try {
-        const client = commonFuncs.defineSql(isDebug);
+        const client = commonFuncs.configureSqlTable(isDebug);
 
         client.connect(err => {
             if (err) {
-                console.log('Mbal:', Date() + '\n' +
-                    'An error occurred while fetching SQL:', err);
                 throw err;
             }
         });
-        
+
         await client.query(
             'UPDATE public.mbal ' +
             'SET title = \'' + data.title +
-            '\', url = \'' + data.url + 
+            '\', url = \'' + data.url +
             '\' WHERE category = \'' + category + '\''
         );
 
         client.end();
     } catch (err) {
-        console.error(err);
+        mailer.sendMail('Error in scrapeMbal.saveRecentTitle:', err);
     }
 }
 
@@ -241,17 +242,21 @@ async function saveRecentTitle(isDebug, category, data) {
  * @param {{title: string, url: string}} data ツイートの中身
  */
 function tweetUpdate(isDebug, header, data) {
-    const content = '【' + header + '】' + data.title + '\n' + data.url + '\n#albirex';
-    console.log('Mbal:', Date() + '\n' + content);
-    commonFuncs.defineBot(isDebug).post(
-        'statuses/update',
-        { status: content },
-        err => {
-            if (!err) {
-                console.log('Tweet succeeded.');
-            } else {
-                console.error('An error occurred while tweeting:', err);
+    try {
+        const content = '【' + header + '】' + data.title + '\n' + data.url + '\n#albirex';
+        console.log('Mbal:', Date() + '\n' + content);
+        commonFuncs.configureTwitterAccount(isDebug, 'mbal').post(
+            'statuses/update',
+            { status: content },
+            err => {
+                if (!err) {
+                    console.log('Tweet succeeded.');
+                } else {
+                    mailer.sendMail('Error in scrapeMbal.tweetUpdate:', err);
+                }
             }
-        }
-    );
+        );
+    } catch (err) {
+        mailer.sendMail('Error in scrapeMbal.tweetUpdate:', err);
+    }
 }

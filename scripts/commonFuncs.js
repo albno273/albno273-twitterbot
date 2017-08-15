@@ -1,14 +1,14 @@
 'use strict';
 
+const Twitter = require('twitter');
 const { Client } = require('pg');
-const twitter = require('twitter');
 
 /**
- * 読み込む SQL テーブル先を設定する
- * @param {boolean} isDebug デバッグ用
- * @return {{Client}} SQLの接続設定
+ * 読み書きするSQLを設定する
+ * @param {boolean} isDebug デバッグなら true
+ * @return {{Client}} localhost か Heroku Postgres の設定
  */
-exports.defineSql = isDebug => {
+exports.configureSqlTable = isDebug => {
     if (isDebug) {
         return new Client({
             host: 'localhost',
@@ -24,13 +24,13 @@ exports.defineSql = isDebug => {
 
 /**
  * つぶやくアカウントを設定する
- * @param {boolean} isDebug デバッグ用
+ * @param {boolean} isDebug デバッグなら true
  * @param {string} from どこから呼んでるか
- * @return {{twitter}} クライアントのCK/CS
+ * @return {{Twitter}} CK/CS
  */
-exports.defineBot = (isDebug, from) => {
+exports.configureTwitterAccount = (isDebug, from) => {
     if (isDebug) {
-        return new twitter({
+        return new Twitter({
             consumer_key: process.env.DEBUG_CK,
             consumer_secret: process.env.DEBUG_CS,
             access_token_key: process.env.DEBUG_ATK,
@@ -39,14 +39,14 @@ exports.defineBot = (isDebug, from) => {
     } else {
         switch (from) {
         case 'grkb':
-            return new twitter({
+            return new Twitter({
                 consumer_key: process.env.GRKB_CK,
                 consumer_secret: process.env.GRKB_CS,
                 access_token_key: process.env.GRKB_ATK,
                 access_token_secret: process.env.GRKB_ATS
             });
         case 'mbal':
-            return new twitter({
+            return new Twitter({
                 consumer_key: process.env.MBAL_CK,
                 consumer_secret: process.env.MBAL_CS,
                 access_token_key: process.env.MBAL_ATK,

@@ -1,46 +1,25 @@
 /* モバアルbot 定期ツイート用 */
 'use strict';
 
-const twitter = require('twitter');
+const commonFuncs = require('./commonFuncs.js');
+const mailer = require('./mailSender.js');
 
 /**
  * 定期ツイート
- * @param {boolean} isDebug デバッグ用
+ * @param {boolean} isDebug デバッグなら true
  * @param {string} content ツイート本文
  */
 exports.scheduledTweet = (isDebug, content) => {
-    console.log('sche:', Date() + '\n' + content);
-    defineBot(isDebug).post(
+    console.log('=== SCHE: ', Date() + ' ===\n' + content);
+    commonFuncs.configureTwitterAccount(isDebug, 'mbal').post(
         'statuses/update',
         { status: content },
         err => {
             if (!err) {
                 console.log('Reg tweet succeeded.');
             } else {
-                console.log('An error occurred while tweeting:', err);
+                mailer.sendMail('Error in mbalScheduledTweet.scheduledTweet:', err);
             }
         }
     );
 };
-
-/**
- * つぶやくアカウントを設定する
- * @param {boolean} isDebug デバッグ用
- */
-function defineBot(isDebug) {
-    if (isDebug) {
-        return new twitter({
-            consumer_key: process.env.DEBUG_CK,
-            consumer_secret: process.env.DEBUG_CS,
-            access_token_key: process.env.DEBUG_ATK,
-            access_token_secret: process.env.DEBUG_ATS
-        });
-    } else {
-        return new twitter({
-            consumer_key: process.env.MBAL_CK,
-            consumer_secret: process.env.MBAL_CS,
-            access_token_key: process.env.MBAL_ATK,
-            access_token_secret: process.env.MBAL_ATS
-        });
-    }
-}

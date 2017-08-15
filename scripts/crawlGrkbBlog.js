@@ -4,6 +4,7 @@
 const FeedParser = require('feedparser');
 const request = require('request');
 const commonFuncs = require('./commonFuncs.js');
+const mailer = require('./mailSender.js');
 
 // RSS の URL
 const shioriRss = 'http://feedblog.ameba.jp/rss/ameblo/mikami-shiori/rss20.xml';
@@ -15,48 +16,55 @@ const rumiRss = 'http://feedblog.ameba.jp/rss/ameblo/rumiokubo/rss20.xml';
  * ごらく部のRSSフィードをクロール
  * @param {boolean} isDebug デバッグ用フラグ
  */
-exports.crawlRss = async isDebug => {
-    // 現時点の最新記事のタイトルとURL
-    const recentTitles = await loadRecentTitle(isDebug);
+exports.crawl = async isDebug => {
+    try {
+        // 現時点の最新記事のタイトルとURL
+        const recentTitles = await loadRecentTitle(isDebug);
 
-    // 更新があったかどうか
-    let haveUpdate = false;
+        // 更新があったかどうか
+        let haveUpdate = false;
 
-    const shioriRes = await crawlRss(shioriRss);
-    if (recentTitles.shiori.recent_title != shioriRes.title
-        && recentTitles.shiori.previous_title != shioriRes.title) {
-        saveRecentTitle(isDebug, 'shiori', shioriRes, recentTitles.shiori);
-        tweetUpdate('三上枝織', shioriRes, isDebug);
-        haveUpdate = true;
-    }
+        const shioriRes = await crawlRss(shioriRss);
+        if (recentTitles.shiori.recent_title != shioriRes.title
+            && recentTitles.shiori.previous_title != shioriRes.title) {
+            saveRecentTitle(isDebug, 'shiori', shioriRes, recentTitles.shiori);
+            tweetUpdate(isDebug, '三上枝織', shioriRes);
+            haveUpdate = true;
+        }
 
-    const yukaRes = await crawlRss(yukaRss);
-    if (recentTitles.yuka.recent_title != yukaRes.title
-        && recentTitles.yuka.previous_title != yukaRes.title
-        && yukaRes.title.match(/大坪由佳/g)) {
-        saveRecentTitle(isDebug, 'yuka', yukaRes, recentTitles.yuka);
-        tweetUpdate('大坪由佳', yukaRes, isDebug);
-        haveUpdate = true;
-    }
+        const yukaRes = await crawlRss(yukaRss);
+        if (recentTitles.yuka.recent_title != yukaRes.title
+            && recentTitles.yuka.previous_title != yukaRes.title) {
+            saveRecentTitle(isDebug, 'yuka', yukaRes, recentTitles.yuka);
+            if (yukaRes.title.match(/大坪由佳/g)) {
+                tweetUpdate(isDebug, '大坪由佳', yukaRes);
+                haveUpdate = true;
+            }
+        }
 
-    const minamiRes = await crawlRss(minamiRss);
-    if (recentTitles.minami.recent_title != minamiRes.title
-        && recentTitles.minami.previous_title != minamiRes.title) {
-        saveRecentTitle(isDebug, 'minami', minamiRes, recentTitles.minami);
-        tweetUpdate('津田美波', minamiRes, isDebug);
-        haveUpdate = true;
-    }
+        const minamiRes = await crawlRss(minamiRss);
+        if (recentTitles.minami.recent_title != minamiRes.title
+            && recentTitles.minami.previous_title != minamiRes.title) {
+            saveRecentTitle(isDebug, 'minami', minamiRes, recentTitles.minami);
+            tweetUpdate(isDebug, '津田美波', minamiRes);
+            haveUpdate = true;
+        }
 
-    const rumiRes = await crawlRss(rumiRss);
-    if (recentTitles.rumi.recent_title != rumiRes.title
-        && recentTitles.rumi.previous_title != rumiRes.title) {
-        saveRecentTitle(isDebug, 'rumi', rumiRes, recentTitles.rumi);
-        tweetUpdate('大久保瑠美', rumiRes, isDebug);
-        haveUpdate = true;
-    }
+        const rumiRes = await crawlRss(rumiRss);
+        if (recentTitles.rumi.recent_title != rumiRes.title
+            && recentTitles.rumi.previous_title != rumiRes.title) {
+            saveRecentTitle(isDebug, 'rumi', rumiRes, recentTitles.rumi);
+            tweetUpdate(isDebug, '大久保瑠美', rumiRes);
+            haveUpdate = true;
+        }
 
-    if (!haveUpdate && isDebug) {
-        console.log('grkb:', Date() + '\n' + 'Grkb blogs are up to date.');
+        if (!haveUpdate && isDebug) {
+            console.log(
+                '=== GRKB: ', Date() + ' ===\n' + 'Grkb blogs are up to date.'
+            );
+        }
+    } catch (err) {
+        mailer.sendMail('Error in crawlGrkbBlog.crawl:', err);
     }
 };
 
@@ -78,8 +86,9 @@ function crawlRss(url) {
         fp_req.on('response', function (res) {
             // TODO: rewrite 'this' in arrow function
             let stream = this;
-            if (res.statusCode != 200)
+            if (res.statusCode != 200) {
                 reject(this.emit('error', new Error('Bad status code')));
+            }
             stream.pipe(feedparser);
         });
 
@@ -98,8 +107,7 @@ function crawlRss(url) {
         });
     })
         .catch(err => {
-            console.log('grkb:', Date() + '\n' +
-                'An error occurred while crawling RSS feed:', err);
+            mailer.sendMail('Error in crawlGrkbBlog.crawlRss:', err);
             return err;
         });
 }
@@ -111,12 +119,10 @@ function crawlRss(url) {
  */
 async function loadRecentTitle(isDebug) {
     try {
-        const client = commonFuncs.defineSql(isDebug);
+        const client = commonFuncs.configureSqlTable(isDebug);
 
         client.connect(err => {
             if (err) {
-                console.error('Grkb:', Date() + '\n' +
-                    'An error occurred while fetching SQL:', err);
                 throw err;
             }
         });
@@ -126,17 +132,19 @@ async function loadRecentTitle(isDebug) {
         );
         let shiori, yuka, minami, rumi;
         result.rows.filter((item) => {
-            if (item.name == 'shiori') {
+            switch (item.name) {
+            case 'shiori':
                 shiori = item;
-            }
-            if (item.name == 'yuka') {
+                break;
+            case 'yuka':
                 yuka = item;
-            }
-            if (item.name == 'minami') {
+                break;
+            case 'minami':
                 minami = item;
-            }
-            if (item.name == 'rumi') {
+                break;
+            case 'rumi':
                 rumi = item;
+                break;
             }
         });
 
@@ -146,7 +154,7 @@ async function loadRecentTitle(isDebug) {
             shiori: shiori, yuka: yuka, minami: minami, rumi: rumi
         });
     } catch (err) {
-        console.error(err);
+        mailer.sendMail('Error in crawlGrkbBlog.loadRecentTitle:', err);
     }
 }
 
@@ -159,12 +167,10 @@ async function loadRecentTitle(isDebug) {
  */
 async function saveRecentTitle(isDebug, name, newData, oldData) {
     try {
-        const client = commonFuncs.defineSql(isDebug);
+        const client = commonFuncs.configureSqlTable(isDebug);
 
         client.connect(err => {
             if (err) {
-                console.log('Mbal:', Date() + '\n' +
-                    'An error occurred while fetching SQL:', err);
                 throw err;
             }
         });
@@ -180,28 +186,32 @@ async function saveRecentTitle(isDebug, name, newData, oldData) {
 
         client.end();
     } catch (err) {
-        console.error(err);
+        mailer.sendMail('Error in crawlGrkbBlog.saveRecentTitle:', err);
     }
 }
 
 /**
  * ツイートする
+ * @param {boolean} isDebug デバッグなら true
  * @param {string} head 名前
  * @param {{title: string, url: string}} data エントリーの情報
- * @param {boolean} isDebug デバッグ用
  */
-function tweetUpdate(head, data, isDebug) {
-    const content = '【ブログ更新】' + head + ': ' + data.title + '\n' + data.url + ' #yuruyuri';
-    console.log('grkb:', Date() + '\n' + content);
-    commonFuncs.defineBot(isDebug, 'grkb').post(
-        'statuses/update',
-        { status: content },
-        err => {
-            if (err) {
-                console.log('An error occurred while tweeting:', err);
-            } else {
-                console.log('Tweet succeeded.');
+function tweetUpdate(isDebug, head, data) {
+    try {
+        const content = '【ブログ更新】' + head + ': ' + data.title + '\n' + data.url + ' #yuruyuri';
+        console.log('=== GRKB: ', Date() + ' ===\n' + content);
+        commonFuncs.configureTwitterAccount(isDebug, 'grkb').post(
+            'statuses/update',
+            { status: content },
+            err => {
+                if (err) {
+                    mailer.sendMail('Error in crawlGrkbBlog.tweetUpdate:', err);
+                } else {
+                    console.log('Tweet succeeded.');
+                }
             }
-        }
-    );
+        );
+    } catch (err) {
+        mailer.sendMail('Error in crawlGrkbBlog.tweetUpdate:', err);
+    }
 }

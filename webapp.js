@@ -34,7 +34,7 @@ app.listen(app.get('port'), () => {
  */
 async function loadMbal(isDebug) {
     try {
-        const client = commonFuncs.defineSql(isDebug);
+        const client = commonFuncs.configureSqlTable(isDebug);
 
         client.connect(err => {
             if (err) {
@@ -85,7 +85,7 @@ async function loadMbal(isDebug) {
  */
 async function loadGrkb(isDebug) {
     try {
-        const client = commonFuncs.defineSql(isDebug);
+        const client = commonFuncs.configureSqlTable(isDebug);
 
         client.connect(err => {
             if (err) {
