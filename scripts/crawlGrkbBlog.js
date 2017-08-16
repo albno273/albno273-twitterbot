@@ -27,40 +27,40 @@ exports.crawl = async isDebug => {
         const shioriRes = await crawlRss(shioriRss);
         if (recentTitles.shiori.recent_title != shioriRes.title
             && recentTitles.shiori.previous_title != shioriRes.title) {
-            saveRecentTitle(isDebug, 'shiori', shioriRes, recentTitles.shiori);
             tweetUpdate(isDebug, '三上枝織', shioriRes);
+            saveRecentTitle(isDebug, 'shiori', shioriRes, recentTitles.shiori);
             haveUpdate = true;
         }
 
         const yukaRes = await crawlRss(yukaRss);
         if (recentTitles.yuka.recent_title != yukaRes.title
             && recentTitles.yuka.previous_title != yukaRes.title) {
-            saveRecentTitle(isDebug, 'yuka', yukaRes, recentTitles.yuka);
             if (yukaRes.title.match(/大坪由佳/g)) {
                 tweetUpdate(isDebug, '大坪由佳', yukaRes);
                 haveUpdate = true;
             }
+            saveRecentTitle(isDebug, 'yuka', yukaRes, recentTitles.yuka);
         }
 
         const minamiRes = await crawlRss(minamiRss);
         if (recentTitles.minami.recent_title != minamiRes.title
             && recentTitles.minami.previous_title != minamiRes.title) {
-            saveRecentTitle(isDebug, 'minami', minamiRes, recentTitles.minami);
             tweetUpdate(isDebug, '津田美波', minamiRes);
+            saveRecentTitle(isDebug, 'minami', minamiRes, recentTitles.minami);
             haveUpdate = true;
         }
 
         const rumiRes = await crawlRss(rumiRss);
         if (recentTitles.rumi.recent_title != rumiRes.title
             && recentTitles.rumi.previous_title != rumiRes.title) {
-            saveRecentTitle(isDebug, 'rumi', rumiRes, recentTitles.rumi);
             tweetUpdate(isDebug, '大久保瑠美', rumiRes);
+            saveRecentTitle(isDebug, 'rumi', rumiRes, recentTitles.rumi);
             haveUpdate = true;
         }
 
         if (!haveUpdate && isDebug) {
             console.log(
-                '=== GRKB: ', Date() + ' ===\n' + 'Grkb blogs are up to date.'
+                '=== GRKB:', Date(), '===\n' + 'Grkb blogs are up to date.'
             );
         }
     } catch (err) {
@@ -168,6 +168,8 @@ async function loadRecentTitle(isDebug) {
 async function saveRecentTitle(isDebug, name, newData, oldData) {
     try {
         const client = commonFuncs.configureSqlTable(isDebug);
+        newData.title = newData.title.replace(/'/g, '\'\'');
+        oldData.recent_title = oldData.recent_title.replace(/'/g, '\'\'');
 
         client.connect(err => {
             if (err) {
@@ -199,7 +201,7 @@ async function saveRecentTitle(isDebug, name, newData, oldData) {
 function tweetUpdate(isDebug, head, data) {
     try {
         const content = '【ブログ更新】' + head + ': ' + data.title + '\n' + data.url + ' #yuruyuri';
-        console.log('=== GRKB: ', Date() + ' ===\n' + content);
+        console.log('=== GRKB:', Date(), '===\n' + content);
         commonFuncs.configureTwitterAccount(isDebug, 'grkb').post(
             'statuses/update',
             { status: content },

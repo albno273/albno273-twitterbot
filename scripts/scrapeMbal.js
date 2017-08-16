@@ -26,50 +26,50 @@ exports.scrape = async isDebug => {
 
         if (spResult.beat.title != null
             && spResult.beat.title != recentTitles.beat.title) {
-            saveRecentTitle(isDebug, 'beat', spResult.beat);
             tweetUpdate(isDebug, 'アルビの鼓動', spResult.beat);
+            saveRecentTitle(isDebug, 'beat', spResult.beat);
             haveUpdate = true;
         }
 
         if (spResult.staff.title != null
             && spResult.staff.title != recentTitles.staff.title) {
-            saveRecentTitle(isDebug, 'staff', spResult.staff);
             tweetUpdate(isDebug, '広報ダイアリー', spResult.staff);
+            saveRecentTitle(isDebug, 'staff', spResult.staff);
             haveUpdate = true;
         }
 
         if (spResult.news.title != null
             && spResult.news.title != recentTitles.news.title) {
-            saveRecentTitle(isDebug, 'news', spResult.news);
             tweetUpdate(isDebug, 'ニュース', spResult.news);
+            saveRecentTitle(isDebug, 'news', spResult.news);
             haveUpdate = true;
         }
 
         if (spResult.academy.title != null
             && spResult.academy.title != recentTitles.academy.title) {
-            saveRecentTitle(isDebug, 'academy', spResult.academy);
             tweetUpdate(isDebug, 'アカデミー', spResult.academy);
+            saveRecentTitle(isDebug, 'academy', spResult.academy);
             haveUpdate = true;
         }
 
         if (pdResult.photo.title != null
             && pdResult.photo.title != recentTitles.photo.title) {
-            saveRecentTitle(isDebug, 'photo', pdResult.photo);
             tweetUpdate(isDebug, 'フォトダイアリー', pdResult.photo);
+            saveRecentTitle(isDebug, 'photo', pdResult.photo);
             haveUpdate = true;
         }
 
         if (spResult.column.title != null
             && spResult.column.title != recentTitles.column.title) {
             spResult.column.title = spResult.column.title.replace(/【コラム】/g, '');
-            saveRecentTitle(isDebug, 'column', spResult.column);
             tweetUpdate(isDebug, 'コラム', spResult.column);
+            saveRecentTitle(isDebug, 'column', spResult.column);
             haveUpdate = true;
         }
 
         if (!haveUpdate && isDebug) {
             console.log(
-                '=== GRKB: ', Date() + ' ===\n' + 'Mbal contents are up to date.'
+                '=== MBAL:', Date(), '===\n' + 'Mbal contents are up to date.'
             );
         }
     } catch (err) {
@@ -215,6 +215,7 @@ async function loadRecentTitle(isDebug) {
 async function saveRecentTitle(isDebug, category, data) {
     try {
         const client = commonFuncs.configureSqlTable(isDebug);
+        data.title = data.title.replace(/'/g, '\'\'');
 
         client.connect(err => {
             if (err) {
@@ -244,7 +245,7 @@ async function saveRecentTitle(isDebug, category, data) {
 function tweetUpdate(isDebug, header, data) {
     try {
         const content = '【' + header + '】' + data.title + '\n' + data.url + '\n#albirex';
-        console.log('Mbal:', Date() + '\n' + content);
+        console.log('=== MBAL:', Date(), '===\n' + content);
         commonFuncs.configureTwitterAccount(isDebug, 'mbal').post(
             'statuses/update',
             { status: content },

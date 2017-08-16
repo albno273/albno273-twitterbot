@@ -10,7 +10,7 @@ exports.sendMail = (head, body) => {
 
     //SMTPの設定
     let transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
+        host: 'smtp.mail.yahoo.co.jp',
         port: 465,
         secure: true, // secure:true for port 465, secure:false for port 587
         auth: {
@@ -34,5 +34,6 @@ exports.sendMail = (head, body) => {
             console.error(err);
         }
         console.log('Message %s sent: %s', info.messageId, info.response);
+        return;
     });
 };

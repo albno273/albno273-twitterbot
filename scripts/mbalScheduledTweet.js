@@ -10,7 +10,7 @@ const mailer = require('./mailSender.js');
  * @param {string} content ツイート本文
  */
 exports.scheduledTweet = (isDebug, content) => {
-    console.log('=== SCHE: ', Date() + ' ===\n' + content);
+    console.log('=== SCHE:', Date(), '===\n' + content);
     commonFuncs.configureTwitterAccount(isDebug, 'mbal').post(
         'statuses/update',
         { status: content },
