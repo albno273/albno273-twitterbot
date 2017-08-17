@@ -34,12 +34,11 @@ exports.crawl = async isDebug => {
 
         const yukaRes = await crawlRss(yukaRss);
         if (recentTitles.yuka.recent_title != yukaRes.title
-            && recentTitles.yuka.previous_title != yukaRes.title) {
-            if (yukaRes.title.match(/大坪由佳/g)) {
-                tweetUpdate(isDebug, '大坪由佳', yukaRes);
-                haveUpdate = true;
-            }
+            && recentTitles.yuka.previous_title != yukaRes.title
+            && yukaRes.title.match(/大坪由佳/g)) {
+            tweetUpdate(isDebug, '大坪由佳', yukaRes);
             saveRecentTitle(isDebug, 'yuka', yukaRes, recentTitles.yuka);
+            haveUpdate = true;
         }
 
         const minamiRes = await crawlRss(minamiRss);

@@ -61,7 +61,6 @@ exports.scrape = async isDebug => {
 
         if (spResult.column.title != null
             && spResult.column.title != recentTitles.column.title) {
-            spResult.column.title = spResult.column.title.replace(/【コラム】/g, '');
             tweetUpdate(isDebug, 'コラム', spResult.column);
             saveRecentTitle(isDebug, 'column', spResult.column);
             haveUpdate = true;
@@ -99,7 +98,7 @@ function scrapeSpSite() {
                 } else if (/public_diary/.test(recentMbalUrl)) {
                     staff = new Object({ title: recentMbalTitle, url: recentMbalUrl });
                 } else if (/walk_way/.test(recentMbalUrl)) {
-                    column = new Object({ title: recentMbalTitle, url: recentMbalUrl });
+                    column = new Object({ title: recentMbalTitle.replace(/【コラム】/g, ''), url: recentMbalUrl });
                 }
 
                 const recentNews = $('.news > .category-detail > ul > li').eq(0);
