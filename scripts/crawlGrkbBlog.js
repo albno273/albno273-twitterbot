@@ -63,6 +63,7 @@ exports.crawl = async isDebug => {
             );
         }
     } catch (err) {
+        console.log('Error in crawlGrkbBlog.crawl:', err);
         mailer.sendMail('Error in crawlGrkbBlog.crawl:', err);
     }
 };
@@ -106,6 +107,7 @@ function crawlRss(url) {
         });
     })
         .catch(err => {
+            console.log('Error in crawlGrkbBlog.crawlRss:', err);
             mailer.sendMail('Error in crawlGrkbBlog.crawlRss:', err);
             return err;
         });
@@ -153,6 +155,7 @@ async function loadRecentTitle(isDebug) {
             shiori: shiori, yuka: yuka, minami: minami, rumi: rumi
         });
     } catch (err) {
+        console.log('Error in crawlGrkbBlog.loadRecentTitle:', err);
         mailer.sendMail('Error in crawlGrkbBlog.loadRecentTitle:', err);
     }
 }
@@ -187,6 +190,7 @@ async function saveRecentTitle(isDebug, name, newData, oldData) {
 
         client.end();
     } catch (err) {
+        console.log('Error in crawlGrkbBlog.saveRecentTitle:', err);
         mailer.sendMail('Error in crawlGrkbBlog.saveRecentTitle:', err);
     }
 }
@@ -199,13 +203,14 @@ async function saveRecentTitle(isDebug, name, newData, oldData) {
  */
 function tweetUpdate(isDebug, head, data) {
     try {
-        const content = '【ブログ更新】' + head + ': ' + data.title + '\n' + data.url + ' #yuruyuri';
+        const content = '【ブログ更新】' + head + ': ' + data.title.substr(0, 100) + '\n' + data.url + ' #yuruyuri';
         console.log('=== GRKB:', Date(), '===\n' + content);
         commonFuncs.configureTwitterAccount(isDebug, 'grkb').post(
             'statuses/update',
             { status: content },
             err => {
                 if (err) {
+                    console.log('Error in crawlGrkbBlog.tweetUpdate:', err);
                     mailer.sendMail('Error in crawlGrkbBlog.tweetUpdate:', err);
                 } else {
                     console.log('Tweet succeeded.');
@@ -213,6 +218,7 @@ function tweetUpdate(isDebug, head, data) {
             }
         );
     } catch (err) {
+        console.log('Error in crawlGrkbBlog.tweetUpdate:', err);
         mailer.sendMail('Error in crawlGrkbBlog.tweetUpdate:', err);
     }
 }

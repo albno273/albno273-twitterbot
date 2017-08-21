@@ -72,6 +72,7 @@ exports.scrape = async isDebug => {
             );
         }
     } catch (err) {
+        console.log('Error in scrapeMbal.scrape:', err);
         mailer.sendMail('Error in scrapeMbal.scrape:', err);
     }
 };
@@ -122,6 +123,7 @@ function scrapeSpSite() {
         });
     })
         .catch(err => {
+            console.log('Error in scrapeMbal.scrapeSpSite:', err);
             mailer.sendMail('Error in scrapeMbal.scrapeSpSite:', err);
             return err;
         });
@@ -147,6 +149,7 @@ function scrapePhotoDiary() {
         });
     })
         .catch(err => {
+            console.log('Error in sccrapeMbal.scrapePhotoDiary:', err);
             mailer.sendMail('Error in scrapeMbal.scrapePhotoDiary:', err);
             return err;
         });
@@ -201,6 +204,7 @@ async function loadRecentTitle(isDebug) {
             academy: academy, photo: photo, column: column
         });
     } catch (err) {
+        console.log('Error in sccrapeMbal.loadRecentTitle:', err);
         mailer.sendMail('Error in scrapeMbal.loadRecentTitle:', err);
     }
 }
@@ -231,6 +235,7 @@ async function saveRecentTitle(isDebug, category, data) {
 
         client.end();
     } catch (err) {
+        console.log('Error in sccrapeMbal.saveRecentTitle:', err);
         mailer.sendMail('Error in scrapeMbal.saveRecentTitle:', err);
     }
 }
@@ -243,7 +248,7 @@ async function saveRecentTitle(isDebug, category, data) {
  */
 function tweetUpdate(isDebug, header, data) {
     try {
-        const content = '【' + header + '】' + data.title + '\n' + data.url + '\n#albirex';
+        let content = '【' + header + '】' + data.title.substr(0, 100) + '\n' + data.url + '\n#albirex';
         console.log('=== MBAL:', Date(), '===\n' + content);
         commonFuncs.configureTwitterAccount(isDebug, 'mbal').post(
             'statuses/update',
@@ -252,11 +257,13 @@ function tweetUpdate(isDebug, header, data) {
                 if (!err) {
                     console.log('Tweet succeeded.');
                 } else {
+                    console.log('Error in scrapeMbal.tweetUpdate:', err);
                     mailer.sendMail('Error in scrapeMbal.tweetUpdate:', err);
                 }
             }
         );
     } catch (err) {
+        console.log('Error in scrapeMbal.tweetUpdate:', err);
         mailer.sendMail('Error in scrapeMbal.tweetUpdate:', err);
     }
 }

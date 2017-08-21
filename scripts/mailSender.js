@@ -31,7 +31,7 @@ exports.sendMail = (head, body) => {
     //メールの送信
     transporter.sendMail(mailOptions, (err, info) => {
         if (err) {
-            console.error(err);
+            console.log('Error in mailSender.sendMail:', err);
         }
         console.log('Message %s sent: %s', info.messageId, info.response);
         return;

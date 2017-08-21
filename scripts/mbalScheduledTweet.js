@@ -18,6 +18,7 @@ exports.scheduledTweet = (isDebug, content) => {
             if (!err) {
                 console.log('Reg tweet succeeded.');
             } else {
+                console.log('Error in mbalScheduledTweet.scheduledTweet:', err);
                 mailer.sendMail('Error in mbalScheduledTweet.scheduledTweet:', err);
             }
         }
