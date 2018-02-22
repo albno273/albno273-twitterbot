@@ -38,6 +38,13 @@ exports.scrape = async isDebug => {
             haveUpdate = true;
         }
 
+        if (spResult.hayakawa.title != null
+            && spResult.hayakawa.title != recentTitles.hayakawa.title) {
+            tweetUpdate(isDebug, '早川史哉の前を向いて歩こう', spResult.hayakawa);
+            saveRecentTitle(isDebug, 'hayakawa', spResult.hayakawa);
+            haveUpdate = true;
+        }
+
         if (spResult.news.title != null
             && spResult.news.title != recentTitles.news.title) {
             tweetUpdate(isDebug, 'ニュース', spResult.news);
@@ -92,12 +99,15 @@ function scrapeSpSite() {
 
                 let beat = new Object({ title: null, url: null });
                 let staff = new Object({ title: null, url: null });
+                let hayakawa = new Object({ title: null, url: null });
                 let column = new Object({ title: null, url: null });
 
                 if (/albirex_beat/.test(recentMbalUrl)) {
                     beat = new Object({ title: recentMbalTitle, url: recentMbalUrl });
                 } else if (/public_diary/.test(recentMbalUrl)) {
                     staff = new Object({ title: recentMbalTitle, url: recentMbalUrl });
+                } else if (/hayakawa/.test(recentMbalUrl)) {
+                    hayakawa = new Object({ title: recentMbalTitle, url: recentMbalUrl });
                 } else if (/walk_way/.test(recentMbalUrl)) {
                     column = new Object({ title: recentMbalTitle.replace(/【コラム】/g, ''), url: recentMbalUrl });
                 }
@@ -114,8 +124,8 @@ function scrapeSpSite() {
                 });
 
                 resolve(new Object({
-                    beat: beat, staff: staff, news: news,
-                    academy: academy, column: column
+                    beat: beat, staff: staff, hayakawa: hayakawa, 
+                    news: news, academy: academy, column: column
                 }));
             } else {
                 reject(err);
@@ -173,7 +183,7 @@ async function loadRecentTitle(isDebug) {
         const result = await client.query(
             'SELECT category, title, url FROM public.mbal'
         );
-        let beat, staff, news, academy, photo, column;
+        let beat, staff, hayakawa, news, academy, photo, column;
         result.rows.filter((item) => {
             switch (item.category) {
             case 'beat':
@@ -181,6 +191,9 @@ async function loadRecentTitle(isDebug) {
                 break;
             case 'staff':
                 staff = item;
+                break;
+            case 'hayakawa':
+                hayakawa = item;
                 break;
             case 'news':
                 news = item;
@@ -200,8 +213,8 @@ async function loadRecentTitle(isDebug) {
         client.end();
 
         return new Object({
-            beat: beat, staff: staff, news: news,
-            academy: academy, photo: photo, column: column
+            beat: beat, staff: staff, hayakawa: hayakawa, 
+            news: news, academy: academy, photo: photo, column: column
         });
     } catch (err) {
         console.log('Error in sccrapeMbal.loadRecentTitle:', err);

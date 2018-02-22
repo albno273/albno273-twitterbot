@@ -3,12 +3,13 @@
 
 const FeedParser = require('feedparser');
 const request = require('request');
+const cheerio = require('cheerio-httpcli');
 const commonFuncs = require('./commonFuncs.js');
 const mailer = require('./mailSender.js');
 
 // RSS の URL
 const shioriRss = 'http://feedblog.ameba.jp/rss/ameblo/mikami-shiori/rss20.xml';
-const yukaRss = 'http://www.earlywing.co.jp/category/blog/feed/';
+const yukaBlog = 'http://earlywing.co.jp/ewblog/?cat=15';
 const minamiRss = 'http://feedblog.ameba.jp/rss/ameblo/00dpd/rss20.xml';
 const rumiRss = 'http://feedblog.ameba.jp/rss/ameblo/rumiokubo/rss20.xml';
 
@@ -32,7 +33,7 @@ exports.crawl = async isDebug => {
             haveUpdate = true;
         }
 
-        const yukaRes = await crawlRss(yukaRss);
+        const yukaRes = await scrape(yukaBlog);
         if (recentTitles.yuka.recent_title != yukaRes.title
             && recentTitles.yuka.previous_title != yukaRes.title
             && yukaRes.title.match(/大坪由佳/g)) {
@@ -109,6 +110,29 @@ function crawlRss(url) {
         .catch(err => {
             console.log('Error in crawlGrkbBlog.crawlRss:', err);
             mailer.sendMail('Error in crawlGrkbBlog.crawlRss:', err);
+            return err;
+        });
+}
+
+/**
+ * ゆかちん用スクレイピング
+ */
+function scrape(url) {
+    return new Promise((resolve, reject) => {
+        cheerio.fetch(url, (err, $) => {
+            if (!err) {
+                resolve(new Object({
+                    title: $('#blog_title').eq(0).find('a').eq(0).text(),
+                    url: $('#blog_title').eq(0).find('a').url()[0]
+                }));
+            } else {
+                reject(err);
+            }
+        });
+    })
+        .catch(err => {
+            console.log('Error in crawlGrkbBlog.scrape:', err);
+            mailer.sendMail('Error in crawlGrkbBlog.scrape:', err);
             return err;
         });
 }
