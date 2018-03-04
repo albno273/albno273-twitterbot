@@ -45,6 +45,13 @@ exports.scrape = async isDebug => {
             haveUpdate = true;
         }
 
+        if (spResult.holiday.title != null
+            && spResult.holiday.title != recentTitles.holiday.title) {
+            tweetUpdate(isDebug, 'アルビの休日', spResult.holiday);
+            saveRecentTitle(isDebug, 'holiday', spResult.holiday);
+            haveUpdate = true;
+        }
+
         if (spResult.news.title != null
             && spResult.news.title != recentTitles.news.title) {
             tweetUpdate(isDebug, 'ニュース', spResult.news);
@@ -100,6 +107,7 @@ function scrapeSpSite() {
                 let beat = new Object({ title: null, url: null });
                 let staff = new Object({ title: null, url: null });
                 let hayakawa = new Object({ title: null, url: null });
+                let holiday = new Object({ title: null, url: null });
                 let column = new Object({ title: null, url: null });
 
                 if (/albirex_beat/.test(recentMbalUrl)) {
@@ -108,6 +116,8 @@ function scrapeSpSite() {
                     staff = new Object({ title: recentMbalTitle, url: recentMbalUrl });
                 } else if (/hayakawa/.test(recentMbalUrl)) {
                     hayakawa = new Object({ title: recentMbalTitle, url: recentMbalUrl });
+                }  else if (/holiday/.test(recentMbalUrl)) {
+                    holiday = new Object({ title: recentMbalTitle, url: recentMbalUrl });
                 } else if (/walk_way/.test(recentMbalUrl)) {
                     column = new Object({ title: recentMbalTitle.replace(/【コラム】/g, ''), url: recentMbalUrl });
                 }
@@ -124,7 +134,7 @@ function scrapeSpSite() {
                 });
 
                 resolve(new Object({
-                    beat: beat, staff: staff, hayakawa: hayakawa, 
+                    beat: beat, staff: staff, hayakawa: hayakawa, holiday: holiday,
                     news: news, academy: academy, column: column
                 }));
             } else {
@@ -183,7 +193,7 @@ async function loadRecentTitle(isDebug) {
         const result = await client.query(
             'SELECT category, title, url FROM public.mbal'
         );
-        let beat, staff, hayakawa, news, academy, photo, column;
+        let beat, staff, hayakawa, holiday, news, academy, photo, column;
         result.rows.filter((item) => {
             switch (item.category) {
             case 'beat':
@@ -194,6 +204,9 @@ async function loadRecentTitle(isDebug) {
                 break;
             case 'hayakawa':
                 hayakawa = item;
+                break;
+            case 'holiday':
+                holiday = item;
                 break;
             case 'news':
                 news = item;
@@ -213,7 +226,7 @@ async function loadRecentTitle(isDebug) {
         client.end();
 
         return new Object({
-            beat: beat, staff: staff, hayakawa: hayakawa, 
+            beat: beat, staff: staff, hayakawa: hayakawa, holiday: holiday,
             news: news, academy: academy, photo: photo, column: column
         });
     } catch (err) {
