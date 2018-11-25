@@ -6,16 +6,16 @@ My twitter bots made in Node.js
 - ごらくブログbot v2 [@grk_b_log_bot](https://twitter.com/grk_b_log_bot)
 
 ## Dependencies
-- Node.js (8.2.0)
+- Node.js (10.13.0)
 - npm
-    - cheerio-httpcli (^0.7.0)
-    - cron (^1.2.1)
-    - ejs (^2.5.7)
-    - express (^4.15.4)
-    - feedparser (2.2.1)
-    - nodemailer (^4.0.1)
-    - pg (^7.0.2)
-    - request (^2.81.0)
+    - cheerio-httpcli (^0.7.3)
+    - cron (^1.5.0)
+    - ejs (^2.6.1)
+    - express (^4.16.4)
+    - feedparser (2.2.9)
+    - nodemailer (^4.7.0)
+    - pg (^7.6.1)
+    - request (^2.88.0)
     - twitter (^1.7.1)
 
 ## License
