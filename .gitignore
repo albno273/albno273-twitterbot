@@ -33,3 +33,4 @@ debug.sh
 debug.js
 webapp.sh
 .eslintrc.json
+package-lock.json
