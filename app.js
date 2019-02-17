@@ -30,30 +30,38 @@ new CronJob('30 * * * * *', () => {
  * モバアルbot
  * 8-24時 毎分0秒
  */
+/*
 new CronJob('0 * 8-23 * * *', () => {
     mbal.scrape(false);
 }, null, true, 'Asia/Tokyo');
+*/
 
 /**
  * モバアルbot 定期ツイート
  * 12-21時 3時間おき
  */
+/*
 new CronJob('0 0 12,15,18,21 * * *', () => {
     sche.scheduledTweet(false, new Date().getHours() + scheduled);
 }, null, true, 'Asia/Tokyo');
+*/
 
 /**
  * モバアルbot おはようツイート
  * 8時
  */
+/*
 new CronJob('0 0 8 * * *', () => {
     sche.scheduledTweet(false, goodMorning);
 }, null, true, 'Asia/Tokyo');
+*/
 
 /**
  * モバアルbot おやすみツイート
  * 24時
  */
+/*
 new CronJob('0 0 0 * * *', () => {
     sche.scheduledTweet(false, goodNight);
 }, null, true, 'Asia/Tokyo');
+*/
