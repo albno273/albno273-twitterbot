@@ -9,14 +9,9 @@ let CronJob = require('cron').CronJob;
 
 // 定期ツイートの本文
 const scheduled = 
-    ':00 -【定期】本アカウントはモバイルアルビレックスの' +
+    ':00 -【定期】本アカウントは「モバアルZ」の' +
     'コンテンツ・ニュース更新を確認しツイートする非公式の' +
     'botです。詳細は固定ツイートをご参照ください。\n#albirex';
-const goodMorning = 
-    '8:00 -【定期】おはようございます。本日のモバアル更新確認を開始します。';
-const goodNight = 
-    '24:00 -【定期】本日のモバアル更新確認を終了します。終了後に更新が' +
-    'あった場合は再開時にまとめてツイートします。おやすみなさい。';
 
 /** 
  * ごらくブログbot
@@ -30,30 +25,14 @@ new CronJob('30 * * * * *', () => {
  * モバアルbot
  * 8-24時 毎分0秒
  */
-new CronJob('0 * 8-23 * * *', () => {
+new CronJob('0 * * * * *', () => {
     mbal.scrape(false);
 }, null, true, 'Asia/Tokyo');
 
 /**
  * モバアルbot 定期ツイート
- * 12-21時 3時間おき
+ * 6時間おき
  */
-new CronJob('0 0 12,15,18,21 * * *', () => {
+new CronJob('0 0 0,6,12,18 * * *', () => {
     sche.scheduledTweet(false, new Date().getHours() + scheduled);
-}, null, true, 'Asia/Tokyo');
-
-/**
- * モバアルbot おはようツイート
- * 8時
- */
-new CronJob('0 0 8 * * *', () => {
-    sche.scheduledTweet(false, goodMorning);
-}, null, true, 'Asia/Tokyo');
-
-/**
- * モバアルbot おやすみツイート
- * 24時
- */
-new CronJob('0 0 0 * * *', () => {
-    sche.scheduledTweet(false, goodNight);
 }, null, true, 'Asia/Tokyo');
