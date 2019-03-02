@@ -65,7 +65,7 @@ exports.crawl = async isDebug => {
         }
     } catch (err) {
         console.log('Error in crawlGrkbBlog.crawl:', err);
-        mailer.sendMail('Error in crawlGrkbBlog.crawl:', err);
+        mailer.sendMail('Error in crawlGrkbBlog.crawl:', err, isDebug);
     }
 };
 
@@ -109,7 +109,7 @@ function crawlRss(url) {
     })
         .catch(err => {
             console.log('Error in crawlGrkbBlog.crawlRss:', err);
-            mailer.sendMail('Error in crawlGrkbBlog.crawlRss:', err);
+            mailer.sendMail('Error in crawlGrkbBlog.crawlRss:', err, isDebug);
             return err;
         });
 }
@@ -132,7 +132,7 @@ function scrape(url) {
     })
         .catch(err => {
             console.log('Error in crawlGrkbBlog.scrape:', err);
-            mailer.sendMail('Error in crawlGrkbBlog.scrape:', err);
+            mailer.sendMail('Error in crawlGrkbBlog.scrape:', err, isDebug);
             return err;
         });
 }
@@ -180,7 +180,7 @@ async function loadRecentTitle(isDebug) {
         });
     } catch (err) {
         console.log('Error in crawlGrkbBlog.loadRecentTitle:', err);
-        mailer.sendMail('Error in crawlGrkbBlog.loadRecentTitle:', err);
+        mailer.sendMail('Error in crawlGrkbBlog.loadRecentTitle:', err, isDebug);
     }
 }
 
@@ -215,7 +215,7 @@ async function saveRecentTitle(isDebug, name, newData, oldData) {
         client.end();
     } catch (err) {
         console.log('Error in crawlGrkbBlog.saveRecentTitle:', err);
-        mailer.sendMail('Error in crawlGrkbBlog.saveRecentTitle:', err);
+        mailer.sendMail('Error in crawlGrkbBlog.saveRecentTitle:', err, isDebug);
     }
 }
 
@@ -235,7 +235,7 @@ function tweetUpdate(isDebug, head, data) {
             err => {
                 if (err) {
                     console.log('Error in crawlGrkbBlog.tweetUpdate:', err);
-                    mailer.sendMail('Error in crawlGrkbBlog.tweetUpdate:', err);
+                    mailer.sendMail('Error in crawlGrkbBlog.tweetUpdate:', err, isDebug);
                 } else {
                     console.log('Tweet succeeded.');
                 }
@@ -243,6 +243,6 @@ function tweetUpdate(isDebug, head, data) {
         );
     } catch (err) {
         console.log('Error in crawlGrkbBlog.tweetUpdate:', err);
-        mailer.sendMail('Error in crawlGrkbBlog.tweetUpdate:', err);
+        mailer.sendMail('Error in crawlGrkbBlog.tweetUpdate:', err, isDebug, isDebug);
     }
 }

@@ -5,7 +5,7 @@
  * @param {string} head どこでエラーが起きたか
  * @param {Object} body エラーの内容
  */
-exports.sendMail = (head, body) => {
+exports.sendMail = (head, body, isDebug) => {
     const nodemailer = require('nodemailer');
 
     //SMTPの設定
@@ -28,12 +28,14 @@ exports.sendMail = (head, body) => {
         html: '<p>' + head + '</p>' + '<p>' + JSON.stringify(body) + '</p>' // html body
     };
 
-    //メールの送信
-    transporter.sendMail(mailOptions, (err, info) => {
-        if (err) {
-            console.log('Error in mailSender.sendMail:', err);
-        }
-        console.log('Message %s sent: %s', info.messageId, info.response);
-        return;
-    });
+    if (!isDebug) {
+        //メールの送信
+        transporter.sendMail(mailOptions, (err, info) => {
+            if (err) {
+                console.log('Error in mailSender.sendMail:', err);
+            }
+            console.log('Message %s sent: %s', info.messageId, info.response);
+            return;
+        });
+    }
 };

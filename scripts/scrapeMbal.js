@@ -6,8 +6,8 @@ const commonFuncs = require('./commonFuncs.js');
 const mailer = require('./mailSender.js');
 
 // HTML スクレイピング先
-const mbalzUrl = 'https://z.albirex.co.jp/updates';
-const photoDiaryUrl = 'http://www.albirex.co.jp/news/photo_diary';
+const mbalzUrl = 'https://z.albirex.co.jp/pages/all';
+const newsUrl = 'http://www.albirex.co.jp/news/';
 
 /**
  * モバアルをクロール
@@ -17,26 +17,30 @@ exports.scrape = async isDebug => {
     try {
         // 現時点の最新記事のタイトルとURL
         const recentArticles = await loadRecentTitle(isDebug);
+        
         // サイトに問い合わせした結果
         const mbalzScrapeResult = await scrapeSpSite();
-        const photoDiaryScrapeResult = await scrapePhotoDiary();
+        const newsScrapeResult = await scrapeNews();
+
 
         // 更新があったかどうか
         let haveUpdate = false;
 
-        if (recentArticles.mbalz.url != mbalzScrapeResult.url) {
+        if (recentArticles.mbalz.url != mbalzScrapeResult.url && 
+            mbalzScrapeResult.url != undefined) {
             tweetUpdate(isDebug, mbalzScrapeResult);
             saveRecentTitle(isDebug, mbalzScrapeResult);
             haveUpdate = true;
         }
 
-        if (recentArticles.photoDiary.url != photoDiaryScrapeResult.url) {
-            tweetUpdate(isDebug, photoDiaryScrapeResult);
-            saveRecentTitle(isDebug, photoDiaryScrapeResult);
+        if (recentArticles.news.url != newsScrapeResult.url &&
+            newsScrapeResult.url != undefined) {
+            tweetUpdate(isDebug, newsScrapeResult);
+            saveRecentTitle(isDebug, newsScrapeResult);
             haveUpdate = true;
         }
 
-        if (!haveUpdate && isDebug) {
+        if (!haveUpdate) {
             console.log(
                 '=== MBAL:', Date(), '===\n' + 'Mbal contents are up to date.'
             );
@@ -55,10 +59,10 @@ async function scrapeSpSite() {
         cheerio.fetch(mbalzUrl, (err, $) => {
             if (!err) {
                 const category = $('.thumbnail-list-category').eq(0).text().trim().replace(/\s{2,}/g, ",");
-                const title = $('.thumbnail-list-image').find('img').attr('alt');
+                const title = $('.thumbnail-list-image').eq(0).find('img').attr('alt');
                 const url = $('.thumbnail-list-item').eq(0).find('a').url();
 
-                resolve({ category: category, title: title, url: url });
+                resolve({ category: category, title: title, url: url, site: 'z' });
             } else {
                 reject(err);
             }
@@ -66,32 +70,43 @@ async function scrapeSpSite() {
     })
         .catch(err => {
             console.log('Error in scrapeMbal.scrapeSpSite:', err);
-            mailer.sendMail('Error in scrapeMbal.scrapeSpSite:', err);
+            mailer.sendMail('Error in scrapeMbal.scrapeSpSite:', err, isDebug);
             return err;
         });
 }
 
 /**
- * PCサイト フォトダイアリーのスクレイピング
- * @return Promise<{category: 'フォト日記', title: string, url: string}> 最新タイトルとURL
+ * PCサイトのスクレイピング
+ * @return Promise<{category: string, title: string, url: string}> 最新タイトルとURL
  */
-async function scrapePhotoDiary() {
+async function scrapeNews() {
     return new Promise((resolve, reject) => {
-        cheerio.fetch(photoDiaryUrl, (err, $) => {
+        cheerio.fetch(newsUrl, (err, $) => {
             if (!err) {
-                const category = 'フォト日記'
-                const title = $('.second-news-area').eq(0).find('a').eq(0).text();
-                const url = $('.second-news-area').eq(0).find('a').url()[1];
+                const news = $('.item-news > .ui-news > ul > li');
+                let category = '';
+                const categoryDom = news.find('.category').eq(0).find('a');
+                const title = news.find('b > a').eq(0).text();
+                const url = news.find('b > a').url()[0];
 
-                resolve({ category: category, title: title, url: url});
+                for (let i = 0; i < categoryDom.length; i++) {
+                    let categoryStr = categoryDom.eq(i).text();
+                    if (i == 0) {
+                        category += categoryStr;
+                    } else {
+                        category += ',' + categoryStr;
+                    }
+                };
+
+                resolve({ category: category, title: title, url: url, site: 'p'});
             } else {
                 reject(err);
             }
         });
     })
         .catch(err => {
-            console.log('Error in sccrapeMbal.scrapePhotoDiary:', err);
-            mailer.sendMail('Error in scrapeMbal.scrapePhotoDiary:', err);
+            console.log('Error in sccrapeMbal.scrapeNews:', err);
+            mailer.sendMail('Error in scrapeMbal.scrapeNews:', err, isDebug);
             return err;
         });
 }
@@ -99,7 +114,7 @@ async function scrapePhotoDiary() {
 /**
  * SQL テーブルから記事タイトルの一覧を取得
  * @param {boolean} isDebug デバッグ用
- * @return {Promise<{ mbalz: { category: string, title: string, url: string }, photoDiary: { title: string, url: string }}>} タイトルとURLのリスト
+ * @return {Promise<{ mbalz: { category: string, title: string, url: string }, news: { title: string, url: string }}>} タイトルとURLのリスト
  */
 async function loadRecentTitle(isDebug) {
     try {
@@ -112,37 +127,37 @@ async function loadRecentTitle(isDebug) {
         });
 
         let mbalzRecent = await client.query(
-            'SELECT category, title, url ' +
+            'SELECT category, title, url, site ' +
             'FROM public.mbalz ' +
-            "WHERE category != 'photo_diary' " +
+            "WHERE site = 'z' " +
 	        'ORDER BY update_time DESC ' +
 	        'LIMIT 1;'
         );
 
         if(mbalzRecent.rows[0] == undefined) {
-            mbalzRecent = { category: '', title: '', url: '' };
+            mbalzRecent = { category: '', title: '', url: '', site: 'z' };
         } else {
             mbalzRecent = mbalzRecent.rows[0];
         }
 
-        let photoDiaryRecent = await client.query(
-            'SELECT category, title, url ' +
+        let newsRecent = await client.query(
+            'SELECT category, title, url, site ' +
             'FROM public.mbalz ' +
-            "WHERE category = 'フォト日記' " +
+            "WHERE site = 'p' " +
             'ORDER BY update_time DESC ' +
             'LIMIT 1;'
         );
 
-        if (photoDiaryRecent.rows[0] == undefined) {
-            photoDiaryRecent = { category: 'フォト日記', title: '', url: '' };
+        if (newsRecent.rows[0] == undefined) {
+            newsRecent = { category: '', title: '', url: '', site: 'p' };
         } else {
-            photoDiaryRecent = photoDiaryRecent.rows[0];
+            newsRecent = newsRecent.rows[0];
         }
 
-        return { mbalz: mbalzRecent, photoDiary: photoDiaryRecent };
+        return { mbalz: mbalzRecent, news: newsRecent };
     } catch (err) {
         console.log('Error in sccrapeMbal.loadRecentTitle:', err);
-        mailer.sendMail('Error in scrapeMbal.loadRecentTitle:', err);
+        mailer.sendMail('Error in scrapeMbal.loadRecentTitle:', err, isDebug);
     }
 }
 
@@ -172,14 +187,14 @@ async function saveRecentTitle(isDebug, data) {
 
         await client.query(
             'INSERT INTO public.mbalz' +
-            '(category, title, url, update_time) ' +
-	        `VALUES('${data.category}', '${data.title}', '${data.url}', '${timestamp}');`
+            '(category, title, url, update_time, site) ' +
+	        `VALUES('${data.category}', '${data.title}', '${data.url}', '${timestamp}', '${data.site}');`
         );
 
         client.end();
     } catch (err) {
         console.log('Error in sccrapeMbal.saveRecentTitle:', err);
-        mailer.sendMail('Error in scrapeMbal.saveRecentTitle:', err);
+        mailer.sendMail('Error in scrapeMbal.saveRecentTitle:', err, isDebug);
     }
 }
 
@@ -194,25 +209,26 @@ function tweetUpdate(isDebug, data) {
         let categoryStr = '';
 
         categoryArr.forEach(element => {
-            categoryStr += `【${element}】`
+            categoryStr += `[${element}] `
         });
 
         let content = `${categoryStr}${data.title.substr(0, 100)}\n${data.url}\n#albirex`;
         console.log('=== MBAL:', Date(), '===\n' + content);
-
-        commonFuncs.configureTwitterAccount(isDebug, 'mbal').post(
-            'statuses/update',
-            { status: content },
-            err => {
-                if (!err) {
-                    console.log('Tweet succeeded.');
-                } else {
-                    console.log('Error in scrapeMbal.tweetUpdate:', err);
+        if (!isDebug) {
+            commonFuncs.configureTwitterAccount(isDebug, 'mbal').post(
+                'statuses/update',
+                { status: content },
+                err => {
+                    if (!err) {
+                        console.log('Tweet succeeded.');
+                    } else {
+                        console.log('Error in scrapeMbal.tweetUpdate:', err);
+                    }
                 }
-            }
-        );
+            );
+        }
     } catch (err) {
         console.log('Error in scrapeMbal.tweetUpdate:', err);
-        mailer.sendMail('Error in scrapeMbal.tweetUpdate:', err);
+        mailer.sendMail('Error in scrapeMbal.tweetUpdate:', err, isDebug);
     }
 }
