@@ -8,6 +8,10 @@ const mailer = require('./mailSender.js');
 // HTML スクレイピング先
 const mbalzUrl = 'https://z.albirex.co.jp/pages/all';
 const newsUrl = 'http://www.albirex.co.jp/news/';
+const categoryArr = [
+    'club', 'top_team', 'games', 'goods', 'academy',
+    'soccer_school', 'sponsor', 'supporters', 'others'
+];
 
 /**
  * モバアルをクロール
@@ -17,15 +21,11 @@ exports.scrape = async isDebug => {
     try {
         // 現時点の最新記事のタイトルとURL
         const recentArticles = await loadRecentTitle(isDebug);
-        
-        // サイトに問い合わせした結果
-        const mbalzScrapeResult = await scrapeSpSite();
-        const newsScrapeResult = await scrapeNews();
-
 
         // 更新があったかどうか
         let haveUpdate = false;
-
+        
+        const mbalzScrapeResult = await scrapeSpSite();
         if (recentArticles.mbalz.url != mbalzScrapeResult.url && 
             mbalzScrapeResult.url != undefined) {
             tweetUpdate(isDebug, mbalzScrapeResult);
@@ -33,12 +33,16 @@ exports.scrape = async isDebug => {
             haveUpdate = true;
         }
 
-        if (recentArticles.news.url != newsScrapeResult.url &&
-            newsScrapeResult.url != undefined) {
-            tweetUpdate(isDebug, newsScrapeResult);
-            saveRecentTitle(isDebug, newsScrapeResult);
-            haveUpdate = true;
-        }
+        categoryArr.forEach(async category => {
+            const newsScrapeResult = await scrapeNews(category);
+            if (recentArticles.news.url != newsScrapeResult.url &&
+                newsScrapeResult.url != undefined &&
+                !(await isDuplicate(isDebug, newsScrapeResult.url))) {
+                    tweetUpdate(isDebug, newsScrapeResult);
+                    saveRecentTitle(isDebug, newsScrapeResult);
+                    haveUpdate = true;
+            }
+        });
 
         if (!haveUpdate) {
             console.log(
@@ -79,9 +83,9 @@ async function scrapeSpSite() {
  * PCサイトのスクレイピング
  * @return Promise<{category: string, title: string, url: string}> 最新タイトルとURL
  */
-async function scrapeNews() {
+async function scrapeNews(category) {
     return new Promise((resolve, reject) => {
-        cheerio.fetch(newsUrl, (err, $) => {
+        cheerio.fetch(newsUrl + category, (err, $) => {
             if (!err) {
                 const news = $('.item-news > .ui-news > ul > li');
                 let category = '';
@@ -158,6 +162,39 @@ async function loadRecentTitle(isDebug) {
     } catch (err) {
         console.log('Error in sccrapeMbal.loadRecentTitle:', err);
         mailer.sendMail('Error in scrapeMbal.loadRecentTitle:', err, isDebug);
+    }
+}
+
+/**
+ * SQL にツイート済みのやつがないか確認する
+ * @param {boolean} isDebug デバッグ用
+ * @param {string} url URL
+ * @return {boolean} あるかどうか
+ */
+async function isDuplicate(isDebug, url) {
+    try {
+        const client = commonFuncs.configureSqlTable(isDebug);
+
+        client.connect(err => {
+            if (err) {
+                throw err;
+            }
+        });
+
+        let mbalzRecent = await client.query(
+            'SELECT category, title, url, site ' +
+            'FROM public.mbalz ' +
+            "WHERE url = '" + url + "' "
+        );
+
+        if (mbalzRecent.rows[0] == undefined) {
+            return false;
+        } else {
+            return true;
+        }
+
+    } catch (err) {
+        console.log('Error in sccrapeMbal.isDuplicate:', err);
     }
 }
 
