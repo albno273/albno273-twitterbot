@@ -19,27 +19,23 @@ const categoryArr = [
  */
 exports.scrape = async isDebug => {
     try {
-        // 現時点の最新記事のタイトルとURL
-        const recentArticles = await loadRecentTitle(isDebug);
-
         // 更新があったかどうか
         let haveUpdate = false;
         
         const mbalzScrapeResult = await scrapeSpSite();
-        if (recentArticles.mbalz.url != mbalzScrapeResult.url && 
-            mbalzScrapeResult.url != undefined) {
+        if (mbalzScrapeResult.url != undefined &&
+            !(await isDuplicate(isDebug, mbalzScrapeResult.url))) {
             tweetUpdate(isDebug, mbalzScrapeResult);
-            saveRecentTitle(isDebug, mbalzScrapeResult);
+            await saveRecentTitle(isDebug, mbalzScrapeResult);
             haveUpdate = true;
         }
 
         categoryArr.forEach(async category => {
             const newsScrapeResult = await scrapeNews(category);
-            if (recentArticles.news.url != newsScrapeResult.url &&
-                newsScrapeResult.url != undefined &&
+            if (newsScrapeResult.url != undefined &&
                 !(await isDuplicate(isDebug, newsScrapeResult.url))) {
                     tweetUpdate(isDebug, newsScrapeResult);
-                    saveRecentTitle(isDebug, newsScrapeResult);
+                    await saveRecentTitle(isDebug, newsScrapeResult);
                     haveUpdate = true;
             }
         });
@@ -116,56 +112,6 @@ async function scrapeNews(category) {
 }
 
 /**
- * SQL テーブルから記事タイトルの一覧を取得
- * @param {boolean} isDebug デバッグ用
- * @return {Promise<{ mbalz: { category: string, title: string, url: string }, news: { title: string, url: string }}>} タイトルとURLのリスト
- */
-async function loadRecentTitle(isDebug) {
-    try {
-        const client = commonFuncs.configureSqlTable(isDebug);
-
-        client.connect(err => {
-            if (err) {
-                throw err;
-            }
-        });
-
-        let mbalzRecent = await client.query(
-            'SELECT category, title, url, site ' +
-            'FROM public.mbalz ' +
-            "WHERE site = 'z' " +
-	        'ORDER BY update_time DESC ' +
-	        'LIMIT 1;'
-        );
-
-        if(mbalzRecent.rows[0] == undefined) {
-            mbalzRecent = { category: '', title: '', url: '', site: 'z' };
-        } else {
-            mbalzRecent = mbalzRecent.rows[0];
-        }
-
-        let newsRecent = await client.query(
-            'SELECT category, title, url, site ' +
-            'FROM public.mbalz ' +
-            "WHERE site = 'p' " +
-            'ORDER BY update_time DESC ' +
-            'LIMIT 1;'
-        );
-
-        if (newsRecent.rows[0] == undefined) {
-            newsRecent = { category: '', title: '', url: '', site: 'p' };
-        } else {
-            newsRecent = newsRecent.rows[0];
-        }
-
-        return { mbalz: mbalzRecent, news: newsRecent };
-    } catch (err) {
-        console.log('Error in sccrapeMbal.loadRecentTitle:', err);
-        mailer.sendMail('Error in scrapeMbal.loadRecentTitle:', err, isDebug);
-    }
-}
-
-/**
  * SQL にツイート済みのやつがないか確認する
  * @param {boolean} isDebug デバッグ用
  * @param {string} url URL
@@ -187,12 +133,13 @@ async function isDuplicate(isDebug, url) {
             "WHERE url = '" + url + "' "
         );
 
+        client.end();
+
         if (mbalzRecent.rows[0] == undefined) {
             return false;
         } else {
             return true;
         }
-
     } catch (err) {
         console.log('Error in sccrapeMbal.isDuplicate:', err);
     }
